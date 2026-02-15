@@ -152,29 +152,29 @@ COCO-style AP metrics are written to `test_results_testdev/results/rfdetr/metric
 
 ### Training Results and Visualizations
 
-The following visualizations are produced under `test_results_testdev/results/yolo26/plots/`. All paths are relative to the repository root.
+The following visualizations are stored in the `images/` folder at the repository root.
 
 #### Confusion Matrix
 
-![YOLO26 confusion matrix](test_results_testdev/results/yolo26/plots/confusion_matrix_normalized.png)
+![YOLO26 confusion matrix](images/confusion_matrix_normalized.png)
 *Normalized confusion matrix showing classification performance across all 10 VisDrone classes*
 
 #### Precision-Recall Curve
 
-![YOLO26 PR curve](test_results_testdev/results/yolo26/plots/BoxPR_curve.png)
+![YOLO26 PR curve](images/BoxPR_curve.png)
 *Precision-Recall curve demonstrating detection quality at various confidence thresholds*
 
 #### Precision Curve
 
-![YOLO26 P curve](test_results_testdev/results/yolo26/plots/BoxP_curve.png)
+![YOLO26 P curve](images/BoxP_curve.png)
 *Precision curve showing model precision across confidence thresholds*
 
 #### Sample Predictions
 
-![val batch0 pred](test_results_testdev/results/yolo26/plots/val_batch0_pred.jpg)
+![val batch0 pred](images/val_batch0_pred.jpg)
 *Sample validation batch predictions showing detected objects with bounding boxes and class labels*
 
-![val batch1 pred](test_results_testdev/results/yolo26/plots/val_batch1_pred.jpg)
+![val batch1 pred](images/val_batch1_pred.jpg)
 *Additional validation batch predictions demonstrating model performance on drone-captured scenes*
 
 Annotated test images (model predictions drawn on test-dev images) are saved in:
@@ -183,12 +183,10 @@ Annotated test images (model predictions drawn on test-dev images) are saved in:
 
 ### Analysis Outputs Explained
 
-The `test_results_testdev/results/` folder contains comprehensive visualizations and metrics:
+The **`images/`** folder at the repository root contains the visualizations shown in this README (confusion matrix, PR curve, precision curve, sample predictions). Full pipeline outputs are under `test_results_testdev/results/` when the test pipeline is run:
 
 - **`yolo26/metrics.json`**: mAP50, mAP50-95, precision, recall, and per-class AP
-- **`yolo26/plots/confusion_matrix_normalized.png`**: Classification performance per class
-- **`yolo26/plots/BoxPR_curve.png`** and **`BoxP_curve.png`**: Detection quality curves
-- **`yolo26/plots/val_batch*_pred.jpg`**: Validation batch prediction visualizations
+- **`yolo26/plots/`**: Confusion matrix, PR curves, validation batch predictions (copies of key plots are in `images/`)
 - **`yolo26/annotated/`** and **`rfdetr/annotated/`**: Test images with predicted bounding boxes drawn
 
 These outputs demonstrate the model evaluation process, metric reporting, and visual inspection capabilities for both YOLO26 and RF-DETR on the VisDrone test-dev set.
@@ -245,6 +243,7 @@ VisDrone_YOLO-RF-Detr/
 ├── models/                            # Weights and artifacts
 │   ├── Yolo26/weights/               # best.pt
 │   └── rfdetr/weights/               # checkpoint_best_regular.pth, etc.
+├── images/                            # README visuals (confusion matrix, curves, sample preds)
 ├── test_results_testdev/              # Test-dev run output (after running pipeline)
 │   ├── yolo_data/                    # YOLO format (test/images, test/labels, data.yaml)
 │   ├── coco_data/                    # COCO format (test/)
