@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VisDrone Inference – YOLO26 / RF-DETR</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1.5rem;
+      background: #1a1b26;
+      color: #a9b1d6;
+    }
+    h1 { color: #7aa2f7; margin-top: 0; }
+    .card {
+      background: #24283b;
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    label { display: block; margin-bottom: 0.35rem; color: #c0caf5; }
+    select, input[type="file"], button {
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      border: 1px solid #414868;
+      background: #1a1b26;
+      color: #a9b1d6;
+      font-size: 1rem;
+    }
+    select { min-width: 160px; cursor: pointer; }
+    input[type="file"] { width: 100%; max-width: 400px; cursor: pointer; }
+    button {
+      background: #7aa2f7;
+      color: #1a1b26;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 0.75rem;
+    }
+    button:hover { background: #89b4fa; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .result-area {
+      margin-top: 1rem;
+      min-height: 120px;
+    }
+    .result-area img, .result-area video {
+      max-width: 100%;
+      border-radius: 8px;
+      border: 1px solid #414868;
+    }
+    .result-area a {
+      color: #7dcfff;
+      margin-top: 0.5rem;
+      display: inline-block;
+    }
+    #detections { font-size: 0.9rem; margin-top: 0.75rem; }
+    #detections ul { margin: 0; padding-left: 1.25rem; }
+    .error { color: #f7768e; }
+    .loading { color: #e0af68; }
+  </style>
+</head>
+<body>
+  <h1>VisDrone Inference</h1>
+  <p>Choose model, upload an image or video, and run detection. You get an annotated result and detections (images only).</p>
+
+  <div class="card">
+    <label for="model">Model</label>
+    <select id="model">
+      <option value="yolo26">YOLO26</option>
+      <option value="rfdetr">RF-DETR</option>
+    </select>
+
+    <label for="file" style="margin-top: 1rem;">Image or video</label>
+    <input type="file" id="file" accept="image/*,video/*,.mp4,.avi,.mov,.mkv,.webm">
+
+    <div style="margin-top: 1rem;">
+      <button type="button" id="run">Run inference</button>
+    </div>
+  </div>
+
+  <div class="card result-area">
+    <div id="message"></div>
+    <div id="media"></div>
+    <div id="detections"></div>
+  </div>
+
+  <script>
+    const model = document.getElementById('model');
+    const fileInput = document.getElementById('file');
+    const runBtn = document.getElementById('run');
+    const message = document.getElementById('message');
+    const media = document.getElementById('media');
+    const detectionsEl = document.getElementById('detections');
+
+    function setMsg(text, isError) {
+      message.innerHTML = '<span class="' + (isError ? 'error' : 'loading') + '">' + text + '</span>';
+    }
+
+    function clearMsg() {
+      message.innerHTML = '';
+    }
+
+    runBtn.addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        setMsg('Please select an image or video.', true);
+        return;
+      }
+      clearMsg();
+      media.innerHTML = '';
+      detectionsEl.innerHTML = '';
+      runBtn.disabled = true;
+      setMsg('Running inference…');
+
+      const form = new FormData();
+      form.append('model', model.value);
+      form.append('file', file);
+
+      try {
+        const r = await fetch('/infer', { method: 'POST', body: form });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          setMsg(data.detail || r.statusText || 'Inference failed', true);
+          return;
+        }
+        clearMsg();
+        const url = data.result_url;
+        const name = data.result_filename || 'result';
+        const isVideo = /\.(mp4|avi|mov|mkv|webm)$/i.test(name);
+        if (isVideo) {
+          media.innerHTML = '<video src="' + url + '" controls></video><br><a href="' + url + '" download="' + name + '">Download video</a>';
+        } else {
+          media.innerHTML = '<img src="' + url + '" alt="Result"><br><a href="' + url + '" download="' + name + '">Download image</a>';
+        }
+        if (data.detections && data.detections.length) {
+          detectionsEl.innerHTML = '<strong>Detections (' + data.detections.length + '):</strong><ul>' +
+            data.detections.map(d => '<li>' + (d.class_name || '') + ' ' + (d.confidence !== undefined ? (d.confidence * 100).toFixed(1) + '%' : '') + '</li>').join('') + '</ul>';
+        }
+      } catch (e) {
+        setMsg('Request failed: ' + e.message, true);
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

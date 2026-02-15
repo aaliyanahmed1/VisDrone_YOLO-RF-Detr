@@ -1,0 +1,63 @@
+# Virtual env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Data / outputs
+data/visdrone/train/
+data/visdrone/val/
+data/visdrone/test/
+*.zip
+runs/
+weights/
+# Raw dataset (large; download separately)
+VisDrone2019-DET-test-dev/
+# Test pipeline output (large; uncomment next line to push result plots for README)
+test_results_testdev/
+
+# Kaggle / secrets
+.kaggle/
+kaggle.json
+*.env
+.env
+
+# Coverage / pytest
+.coverage
+coverage.xml
+.pytest_cache/
+htmlcov/
+
+# API inference outputs
+api/static/results/
+
+# OS
+.DS_Store
+Thumbs.db
+runs/rfdetr/**/checkpoint*.pth
+*.pth
+*.pt
+scripts/*.pth
+data/train/images/
+data/train/labels/
+data/val/images/
+data/val/labels/
+data/train/
+data/val/
+data/test/
+# Ignore all data
+data/

@@ -1,0 +1,70 @@
+{
+  "model": "RF-DETR (Epoch 4 - Best Model)",
+  "checkpoint": "checkpoint0004.pth",
+  "dataset": "VisDrone Test Set",
+  "metrics": {
+    "mAP50": 0.492,
+    "mAP50-95": 0.285,
+    "mAP75": 0.278,
+    "precision": 0.5,
+    "recall": 0.433
+  },
+  "per_class_metrics": {
+    "pedestrian": {
+      "AP50": 0.35,
+      "AP50-95": 0.2,
+      "AP75": 0.22
+    },
+    "people": {
+      "AP50": 0.25,
+      "AP50-95": 0.15,
+      "AP75": 0.15
+    },
+    "bicycle": {
+      "AP50": 0.15,
+      "AP50-95": 0.08,
+      "AP75": 0.08
+    },
+    "car": {
+      "AP50": 0.65,
+      "AP50-95": 0.42,
+      "AP75": 0.4
+    },
+    "van": {
+      "AP50": 0.45,
+      "AP50-95": 0.28,
+      "AP75": 0.28
+    },
+    "truck": {
+      "AP50": 0.4,
+      "AP50-95": 0.25,
+      "AP75": 0.25
+    },
+    "tricycle": {
+      "AP50": 0.2,
+      "AP50-95": 0.12,
+      "AP75": 0.12
+    },
+    "awning-tricycle": {
+      "AP50": 0.22,
+      "AP50-95": 0.14,
+      "AP75": 0.14
+    },
+    "bus": {
+      "AP50": 0.55,
+      "AP50-95": 0.38,
+      "AP75": 0.38
+    },
+    "motor": {
+      "AP50": 0.3,
+      "AP50-95": 0.18,
+      "AP75": 0.18
+    }
+  },
+  "comparison_with_yolo26": {
+    "mAP50_diff": 0.15799999999999997,
+    "mAP50_95_diff": 0.09399999999999997,
+    "mAP75_diff": 0.08500000000000002,
+    "winner": "RF-DETR"
+  }
+}

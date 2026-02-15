@@ -1,0 +1,26 @@
+[MASTER]
+jobs=0
+suggestion-mode=yes
+load-plugins=
+
+[MESSAGES CONTROL]
+disable=
+    C0114,  # missing-module-docstring (allow for __init__.py)
+    R0903,  # too-few-public-methods
+
+[FORMAT]
+max-line-length=100
+
+[BASIC]
+good-names=i,j,k,ex,Run,_,id,fp,cid,cnf,xc,yc
+
+[DESIGN]
+max-args=10
+max-attributes=12
+
+[TYPECHECK]
+ignored-modules=ultralytics,rfdetr,cv2,albumentations,torch,torchvision,yaml
+
+[SIMILARITIES]
+min-similarity-lines=8
+ignore-imports=yes
