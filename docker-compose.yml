@@ -1,0 +1,36 @@
+# ============================================================================
+# VisDrone Inference API — Docker Compose
+# ============================================================================
+# Usage:
+#   docker compose up --build        (build & run)
+#   docker compose up -d             (run in background)
+#   docker compose down              (stop)
+#   docker compose logs -f           (tail logs)
+# ============================================================================
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: visdrone-api:latest
+    container_name: visdrone-api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Uncomment below for GPU support (requires nvidia-container-toolkit)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/" ]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3

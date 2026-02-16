@@ -11,18 +11,17 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # ── YOLO26 weights ─────────────────────────────────────────────────────────
 YOLO_WEIGHTS = REPO_ROOT / "models" / "Yolo26" / "weights" / "best.pt"
 
-# ── RF-DETR weights ────────────────────────────────────────────────────────
+# ── RF-DETR weights: prefer checkpoint_best_total.pth ───────────────────────
 _RFDETR_DIR = REPO_ROOT / "models" / "rfdetr" / "weights"
-_RFDETR_CANDIDATES = [
-    "checkpoint_best_total.pth",
-    "checkpoint_best_regular.pth",
-    "checkpoint_best_ema.pth",
-]
-RFDETR_WEIGHTS = _RFDETR_DIR / "checkpoint_best_total.pth"
-for _name in _RFDETR_CANDIDATES:
-    if (_RFDETR_DIR / _name).exists():
-        RFDETR_WEIGHTS = _RFDETR_DIR / _name
-        break
+_CHECKPOINT_BEST_TOTAL = _RFDETR_DIR / "checkpoint_best_total.pth"
+RFDETR_WEIGHTS = _CHECKPOINT_BEST_TOTAL if _CHECKPOINT_BEST_TOTAL.exists() else None
+if RFDETR_WEIGHTS is None:
+    for _name in ("checkpoint_best_regular.pth", "checkpoint_best_ema.pth", "checkpoint_best.pth"):
+        if (_RFDETR_DIR / _name).exists():
+            RFDETR_WEIGHTS = _RFDETR_DIR / _name
+            break
+if RFDETR_WEIGHTS is None:
+    RFDETR_WEIGHTS = _CHECKPOINT_BEST_TOTAL  # path to use; will fail at load if missing
 
 # Number of classes the fine-tuned VisDrone RF-DETR checkpoint was trained on
 RFDETR_NUM_CLASSES = 10
@@ -35,7 +34,7 @@ VISDRONE_NAMES = [
 print(f"[engine] Python executable : {sys.executable}")
 print(f"[engine] Python version    : {sys.version}")
 print(f"[engine] YOLO weights      : {YOLO_WEIGHTS}  (exists={YOLO_WEIGHTS.exists()})")
-print(f"[engine] RF-DETR weights   : {RFDETR_WEIGHTS}  (exists={RFDETR_WEIGHTS.exists()})")
+print(f"[engine] RF-DETR weights   : {RFDETR_WEIGHTS}  (exists={RFDETR_WEIGHTS and RFDETR_WEIGHTS.exists()})")
 
 
 # ── RF-DETR model cache (singleton) ───────────────────────────────────────

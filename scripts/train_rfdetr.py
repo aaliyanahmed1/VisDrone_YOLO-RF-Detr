@@ -177,6 +177,9 @@ def main() -> int:
         "tensorboard": args.tensorboard,
         "early_stopping": args.early_stopping,
         "early_stopping_patience": args.early_stopping_patience,
+        # Class-imbalance mitigation (focal loss)
+        "focal_loss_alpha": 0.75,
+        "focal_loss_gamma": 2.0,
     }
 
     if args.device:

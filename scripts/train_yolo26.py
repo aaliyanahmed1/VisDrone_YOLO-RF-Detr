@@ -48,9 +48,6 @@ def main():
 
     model = YOLO(str(weights_path))
 
-    # Standard args only (this Ultralytics version does not accept fl_gamma/cls in train()).
-    # For class imbalance (43:1 car vs awning-tricycle), use oversampling or a custom cfg with
-    # fl_gamma and cls if your Ultralytics supports them; see docs/comments above.
     train_kwargs = {
         "data": str(data_path.resolve()),
         "epochs": args.epochs,
@@ -59,6 +56,13 @@ def main():
         "project": args.project,
         "name": args.name,
         "exist_ok": True,
+        # Class-imbalance mitigation (VisDrone: car ~40% vs awning-tricycle ~2%)
+        "fl_gamma": 1.5,        # focal loss — down-weight easy/dominant-class samples
+        "mosaic": 1.0,          # full mosaic augmentation — mixes 4 images per sample
+        "mixup": 0.15,          # mixup blending — extra exposure to rare classes
+        "copy_paste": 0.1,      # copy-paste augmentation — helps small/rare objects
+        "degrees": 10.0,        # slight rotation
+        "scale": 0.5,           # scale jitter
     }
     results = model.train(**train_kwargs)
     print("Done. Best:", results.save_dir / "weights" / "best.pt")

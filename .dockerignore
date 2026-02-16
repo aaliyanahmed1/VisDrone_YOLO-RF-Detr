@@ -1,8 +1,19 @@
+# ── .dockerignore ─────────────────────────────────────────────────────────
+# Exclude everything we don't need in the Docker image
+
+# Version control
 .git
 .gitignore
+.gitattributes
+.github
+
+# Virtual environments
 .venv
 venv
 env
+.Python
+
+# Build artifacts
 *.egg-info
 .pytest_cache
 .mypy_cache
@@ -10,17 +21,50 @@ __pycache__
 *.pyc
 *.pyo
 *.pyd
-.Python
 *.so
 
+# Data & training artifacts
 data/
 runs/
+test_results/
 test_results_testdev/
 images/
-*.pth
+VisDrone2019-DET-test-dev/
 
+# Model weights we DON'T need (keep only best.pt and checkpoint_best_total.pth)
+models/rfdetr/weights/checkpoint.pth
+models/rfdetr/weights/checkpoint0*.pth
+models/rfdetr/weights/checkpoint_best_ema.pth
+models/rfdetr/weights/checkpoint_best_regular.pth
+models/rfdetr/log.txt
+models/rfdetr/evaluation_plots/
+models/rfdetr/README.md
+models/Yolo26/weights/best.onnx
+models/Yolo26/args.yaml
+models/Yolo26/results.csv
+models/Yolo26/*.jpg
+models/Yolo26/eval_test/
+models/Yolo26/README.md
+models/README.md
+rf-detr-base.pth
+
+# Source / scripts not needed for API
+src/
+scripts/
+tests/
+
+# IDE / editor
 .idea
 .vscode
 .cursor
+.gemini
+.agent
+
+# OS
 .DS_Store
 Thumbs.db
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+README-docker.md

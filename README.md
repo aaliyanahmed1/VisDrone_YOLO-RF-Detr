@@ -59,13 +59,73 @@ The project employs two detector families: a **CNN-based** single-stage detector
 
 ## Data Understanding & Preparation
 
-- **Dataset Size**: Depends on the VisDrone split (train/val/test). The check and analyze scripts report exact counts
+### About the Dataset
+
+The **VisDrone2019-DET** dataset is collected by the AISKYEYE team at the Lab of Machine Learning and Data Mining, **Tianjin University, China**. It is one of the largest and most challenging benchmarks for drone-view object detection. Images and video are captured by various drone-mounted cameras, covering a wide range of aspects including location, environment, object types, and density.
+
+### Dataset Statistics
+
+| Statistic | Value |
+|-----------|-------|
+| **Total static images** | **10,209** |
+| **Total video clips** | **288** (261,908 frames) |
+| **Total bounding box annotations** | **2,600,000+** |
+| **Number of classes** | **10** |
+| **Capture locations** | **14 cities** across China (separated by thousands of km) |
+| **Download size** | **~2.3 GB** (DET task images only) |
+
+### Split Breakdown
+
+| Split | Images | Purpose |
+|-------|--------|---------|
+| **VisDrone2019-DET-train** | **6,471** | Model training |
+| **VisDrone2019-DET-val** | **548** | Validation during training |
+| **VisDrone2019-DET-test-dev** | **1,610** (75,102 instances) | Final evaluation / benchmarking |
+| **Total (DET task)** | **8,629** | — |
+
+### Class Distribution
+
+The dataset is **heavily imbalanced** — vehicles (especially cars) dominate while certain classes are underrepresented:
+
+| ID | Class | Approx. % of all annotations | Frequency |
+|----|-------|-------------------------------|-----------|
+| 0 | **pedestrian** | ~15.4% | ██████████████▌ High |
+| 1 | **people** | ~13.5% | █████████████▌ High |
+| 2 | **bicycle** | ~2.1% | ██ Low |
+| 3 | **car** | ~38.7% | ██████████████████████████████████████▋ Dominant |
+| 4 | **van** | ~7.2% | ███████▏ Medium |
+| 5 | **truck** | ~3.7% | ███▋ Low–Medium |
+| 6 | **tricycle** | ~2.3% | ██▎ Low |
+| 7 | **awning-tricycle** | ~1.8% | █▊ Rare |
+| 8 | **bus** | ~1.7% | █▋ Rare |
+| 9 | **motor** | ~13.6% | █████████████▌ High |
+
+> **Note**: `car` alone accounts for nearly **40%** of all bounding boxes. Rare classes like `awning-tricycle` and `bus` have ≤2% each, making them harder to detect.
+
+### Dataset Coverage
+
+- **Environments**: Urban and rural/country scenes
+- **Objects of interest**: Pedestrians, vehicles, bicycles, and tricycles
+- **Scene density**: Sparse to very crowded scenes
+- **Drone platforms**: Multiple drone models with different cameras
+- **Conditions**: Various weather and lighting conditions
+- **Attributes**: Scene visibility, object class, and occlusion level are annotated
+
+### Label Format
+
+- **Original**: VisDrone-specific CSV format (`bbox_left, bbox_top, bbox_width, bbox_height, score, class, truncation, occlusion`)
+- **YOLO format** (used for YOLO26): Normalized `class_id x_center y_center width height` per line
+- **COCO format** (used for RF-DETR): JSON with `images`, `annotations`, and `categories` arrays
+- **Conversion**: `scripts/convert_visdrone_to_yolo.py` and `scripts/convert_yolo_to_coco.py` handle format conversion
+
+### Data Validation & Analysis
+
 - **Inspection**:
   - `python scripts/check_dataset.py --data-root <dataset_root>` — validates structure, missing files, invalid labels
   - `python scripts/analyze_data.py --data <dataset_root>` — per-split image and box counts, and class distribution
-- **Preprocessing**: Resize and normalization are handled inside the YOLO and RF-DETR training pipelines (e.g. 640px, ImageNet-style normalization)
-- **Augmentation**: YOLO uses built-in augmentation (flip, mosaic, etc.); RF-DETR uses its library augmentation when available
-- **Class Imbalance**: VisDrone is imbalanced (e.g. many more cars than awning-tricycles). The pipeline uses default loss and augmentation; class weights or oversampling can be added if needed
+- **Preprocessing**: Resize and normalization are handled inside the YOLO and RF-DETR training pipelines (e.g. 640px for YOLO, ImageNet-style normalization for RF-DETR)
+- **Augmentation**: YOLO uses built-in augmentation (flip, mosaic, mixup, HSV jitter, etc.); RF-DETR uses its library augmentation when available
+- **Class Imbalance**: VisDrone is significantly imbalanced (car ~40% vs. awning-tricycle ~2%). The training pipeline mitigates this through focal loss (γ=1.5) and increased mosaic/mixup augmentation to improve exposure to rare classes
 - **Noisy Labels**: The check script reports invalid or missing labels; no explicit noise cleaning is applied
 
 **Expected Layout**: Dataset root with `train/images`, `train/labels`, `val/`, `test/`, and a `data.yaml` (path, train/val/test, `nc: 10`, class names).
@@ -230,7 +290,7 @@ Annotated test images (model predictions drawn on test-dev images) are saved in:
 
 ### Analysis Outputs Explained
 
-The **`images/`** folder at the repository root contains the visualizations shown in this README: YOLO26 (confusion matrix, PR curve, precision curve, sample predictions) and RF-DETR (metrics summary, metrics by scale, metrics overview, score distribution, detections per class, sample annotated outputs). Full pipeline outputs are under `test_results_testdev/results/` when the test pipeline is run:
+The **`images/`** folder at the repository root contains the visualizations shown in this README: YOLO26 (confusion matrix, PR curve, precision curve, sample predictions) and RF-DETR (metrics summary, metrics by scale, metrics overview, score distribution, detections per class, sample annotated outputs). 
 
 - **`yolo26/metrics.json`**: mAP50, mAP50-95, precision, recall, and per-class AP
 - **`yolo26/plots/`**: Confusion matrix, PR curves, validation batch predictions (key plots in `images/`)
