@@ -2,35 +2,64 @@
 
 from __future__ import annotations
 
+import sys
 import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# ── YOLO26 weights ─────────────────────────────────────────────────────────
 YOLO_WEIGHTS = REPO_ROOT / "models" / "Yolo26" / "weights" / "best.pt"
-if not YOLO_WEIGHTS.exists():
-    YOLO_WEIGHTS = REPO_ROOT / "runs" / "detect" / "runs" / "yolo26" / "visdrone" / "weights" / "best.pt"
-RFDETR_WEIGHTS_DIR = REPO_ROOT / "models" / "rfdetr" / "weights"
-if not RFDETR_WEIGHTS_DIR.exists() or not list(RFDETR_WEIGHTS_DIR.glob("checkpoint*.pth")):
-    RFDETR_WEIGHTS_DIR = REPO_ROOT / "runs" / "rfdetr" / "visdrone_20260214_145610"
+
+# ── RF-DETR weights ────────────────────────────────────────────────────────
+_RFDETR_DIR = REPO_ROOT / "models" / "rfdetr" / "weights"
+_RFDETR_CANDIDATES = [
+    "checkpoint_best_total.pth",
+    "checkpoint_best_regular.pth",
+    "checkpoint_best_ema.pth",
+]
+RFDETR_WEIGHTS = _RFDETR_DIR / "checkpoint_best_total.pth"
+for _name in _RFDETR_CANDIDATES:
+    if (_RFDETR_DIR / _name).exists():
+        RFDETR_WEIGHTS = _RFDETR_DIR / _name
+        break
+
+# Number of classes the fine-tuned VisDrone RF-DETR checkpoint was trained on
+RFDETR_NUM_CLASSES = 10
 
 VISDRONE_NAMES = [
     "pedestrian", "people", "bicycle", "car", "van",
     "truck", "tricycle", "awning-tricycle", "bus", "motor",
 ]
 
+print(f"[engine] Python executable : {sys.executable}")
+print(f"[engine] Python version    : {sys.version}")
+print(f"[engine] YOLO weights      : {YOLO_WEIGHTS}  (exists={YOLO_WEIGHTS.exists()})")
+print(f"[engine] RF-DETR weights   : {RFDETR_WEIGHTS}  (exists={RFDETR_WEIGHTS.exists()})")
 
-def _resolve_rfdetr_ckpt(weights_path: str) -> str:
-    p = Path(weights_path)
-    if p.suffix == ".pth" and p.exists():
-        return str(p)
-    for name in ("checkpoint_best_regular.pth", "checkpoint_best_total.pth", "checkpoint_best_ema.pth", "checkpoint_best.pth", "checkpoint_last.pth"):
-        c = p / name
-        if c.exists():
-            return str(c)
-    for c in sorted(p.glob("checkpoint_*.pth"), reverse=True):
-        return str(c)
-    return str(p / "checkpoint_best_total.pth")
 
+# ── RF-DETR model cache (singleton) ───────────────────────────────────────
+_rfdetr_model = None  # cached RFDETRBase instance
+
+
+def _get_rfdetr_model(weights_path: str = ""):
+    """Return a cached RFDETRBase model, loading it only once."""
+    global _rfdetr_model
+    w = weights_path or str(RFDETR_WEIGHTS)
+
+    if _rfdetr_model is not None:
+        return _rfdetr_model
+
+    from rfdetr import RFDETRBase
+    print(f"[engine] Loading RF-DETR model from: {w}")
+    print(f"[engine] num_classes={RFDETR_NUM_CLASSES}  (VisDrone: {VISDRONE_NAMES})")
+    model = RFDETRBase(pretrain_weights=w, num_classes=RFDETR_NUM_CLASSES)
+    print(f"[engine] RF-DETR model loaded successfully ✓")
+    _rfdetr_model = model
+    return model
+
+
+# ── YOLO26 inference ───────────────────────────────────────────────────────
 
 def run_yolo26(image_path: str, weights_path: str = "", device: str = "") -> list[dict]:
     from ultralytics import YOLO
@@ -55,27 +84,37 @@ def run_yolo26(image_path: str, weights_path: str = "", device: str = "") -> lis
     return out
 
 
+# ── RF-DETR inference ──────────────────────────────────────────────────────
+
 def run_rfdetr(image_path: str, weights_path: str = "", device: str = "") -> list[dict]:
-    from rfdetr import RFDETRBase
-    w = weights_path or str(RFDETR_WEIGHTS_DIR)
-    ckpt = _resolve_rfdetr_ckpt(w)
-    model = RFDETRBase(pretrain_weights=ckpt)
+    """Run RF-DETR inference using the fine-tuned .pth checkpoint."""
+    model = _get_rfdetr_model(weights_path)
     detections = model.predict(image_path)
     out = []
-    if hasattr(detections, "__iter__"):
-        for d in detections:
-            if isinstance(d, dict):
-                cls_id = d.get("category_id", d.get("class_id", 0)) - 1
-                if cls_id < 0:
-                    cls_id = 0
-                out.append({
-                    "class_id": cls_id,
-                    "class_name": VISDRONE_NAMES[cls_id] if cls_id < len(VISDRONE_NAMES) else str(cls_id),
-                    "confidence": round(float(d.get("score", d.get("confidence", 0))), 4),
-                    "bbox": d.get("bbox", d.get("box", [])),
-                })
+
+    # predict() returns a supervision.Detections object
+    if hasattr(detections, "xyxy") and detections.xyxy is not None:
+        for i in range(len(detections.xyxy)):
+            xyxy = detections.xyxy[i].tolist()
+            conf = float(detections.confidence[i]) if detections.confidence is not None else 0.0
+            cls_id = int(detections.class_id[i]) if detections.class_id is not None else 0
+
+            # Map class IDs to 0-based VisDrone names
+            if cls_id >= len(VISDRONE_NAMES):
+                cls_id = len(VISDRONE_NAMES) - 1
+            if cls_id < 0:
+                cls_id = 0
+
+            out.append({
+                "class_id": cls_id,
+                "class_name": VISDRONE_NAMES[cls_id],
+                "confidence": round(conf, 4),
+                "bbox": [round(x, 2) for x in xyxy],
+            })
     return out
 
+
+# ── Annotated Image Helpers ────────────────────────────────────────────────
 
 def get_annotated_image_yolo(image_path: str, out_path: str, weights_path: str = "") -> None:
     from ultralytics import YOLO
@@ -93,28 +132,23 @@ def get_annotated_image_yolo(image_path: str, out_path: str, weights_path: str =
 
 def get_annotated_image_rfdetr(image_path: str, out_path: str, weights_path: str = "") -> None:
     import cv2
-    dets = run_rfdetr(image_path, weights_path or str(RFDETR_WEIGHTS_DIR))
+    dets = run_rfdetr(image_path, weights_path)
     img = cv2.imread(image_path)
     if img is None:
         import shutil
         shutil.copy(image_path, out_path)
         return
-    h, w = img.shape[:2]
     for d in dets:
         bbox = d.get("bbox", [])
-        if len(bbox) == 4:
-            x, y, bw, bh = bbox
-            x2, y2 = x + bw, y + bh
-        elif len(bbox) >= 4:
-            x, y, x2, y2 = bbox[0], bbox[1], bbox[2], bbox[3]
-        else:
-            continue
-        x, y, x2, y2 = int(x), int(y), int(x2), int(y2)
-        cv2.rectangle(img, (x, y), (x2, y2), (0, 255, 0), 2)
-        label = f"{d.get('class_name', '')} {d.get('confidence', 0):.2f}"
-        cv2.putText(img, label, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        if len(bbox) >= 4:
+            x1, y1, x2, y2 = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
+            cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            label = f"{d.get('class_name', '')} {d.get('confidence', 0):.2f}"
+            cv2.putText(img, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
     cv2.imwrite(out_path, img)
 
+
+# ── Annotated Video Helpers ────────────────────────────────────────────────
 
 def get_annotated_video_yolo(video_path: str, out_path: str, weights_path: str = "") -> None:
     from ultralytics import YOLO
@@ -138,10 +172,7 @@ def get_annotated_video_yolo(video_path: str, out_path: str, weights_path: str =
 
 def get_annotated_video_rfdetr(video_path: str, out_path: str, weights_path: str = "") -> None:
     import cv2
-    from rfdetr import RFDETRBase
-    w = weights_path or str(RFDETR_WEIGHTS_DIR)
-    ckpt = _resolve_rfdetr_ckpt(w)
-    model = RFDETRBase(pretrain_weights=ckpt)
+    model = _get_rfdetr_model(weights_path)
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS) or 25
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -156,18 +187,23 @@ def get_annotated_video_rfdetr(video_path: str, out_path: str, weights_path: str
                 break
             frame_path = Path(tmp) / f"frame_{frame_idx:06d}.jpg"
             cv2.imwrite(str(frame_path), frame)
-            dets = run_rfdetr(str(frame_path), w)
-            for d in dets:
-                bbox = d.get("bbox", [])
-                if len(bbox) >= 4:
-                    x, y = int(bbox[0]), int(bbox[1])
-                    if len(bbox) == 4:
-                        x2, y2 = x + int(bbox[2]), y + int(bbox[3])
-                    else:
-                        x2, y2 = int(bbox[2]), int(bbox[3])
-                    cv2.rectangle(frame, (x, y), (x2, y2), (0, 255, 0), 2)
-                    label = f"{d.get('class_name', '')} {d.get('confidence', 0):.2f}"
-                    cv2.putText(frame, label, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+            detections = model.predict(str(frame_path))
+            if hasattr(detections, "xyxy") and detections.xyxy is not None:
+                for i in range(len(detections.xyxy)):
+                    xyxy = detections.xyxy[i].tolist()
+                    conf = float(detections.confidence[i]) if detections.confidence is not None else 0.0
+                    cls_id = int(detections.class_id[i]) if detections.class_id is not None else 0
+                    if cls_id >= len(VISDRONE_NAMES):
+                        cls_id = len(VISDRONE_NAMES) - 1
+                    if cls_id < 0:
+                        cls_id = 0
+
+                    x1, y1, x2, y2 = int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3])
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    label = f"{VISDRONE_NAMES[cls_id]} {conf:.2f}"
+                    cv2.putText(frame, label, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
             writer.write(frame)
             frame_idx += 1
     cap.release()

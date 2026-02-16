@@ -216,32 +216,18 @@ names:
         print("  To run RF-DETR: use Python 3.10+ and install from GitHub:")
         print("    pip install \"git+https://github.com/roboflow/rf-detr.git\"")
 
-    # --- Optional: RF-DETR metrics plot ---
-    rf_metrics = results_base / "rfdetr" / "metrics.json"
-    if rf_metrics.exists():
-        try:
-            import json
-            with open(rf_metrics, encoding="utf-8") as f:
-                m = json.load(f)
-            plots_dir = results_base / "rfdetr" / "plots"
-            plots_dir.mkdir(parents=True, exist_ok=True)
-            coco = m.get("coco_eval") or {}
-            if coco:
-                import matplotlib
-                matplotlib.use("Agg")
-                import matplotlib.pyplot as plt
-                fig, ax = plt.subplots(figsize=(8, 4))
-                keys = ["AP", "AP50", "AP75"]
-                vals = [float(coco.get(k)) if coco.get(k) is not None else 0 for k in keys]
-                ax.bar(keys, vals, color=["#2E86AB", "#A23B72", "#F18F01"])
-                ax.set_ylabel("Score")
-                ax.set_title("RF-DETR test metrics (VisDrone2019-DET-test-dev)")
-                ax.set_ylim(0, 1)
-                plt.tight_layout()
-                plt.savefig(plots_dir / "metrics_summary.png", dpi=150, bbox_inches="tight")
-                plt.close()
-        except Exception as e:
-            print(f"  (Optional RF-DETR plot skipped: {e})")
+    # Generate RF-DETR plots when metrics exist (curve-style; no separate user step)
+    rfdetr_out = results_base / "rfdetr"
+    if (rfdetr_out / "metrics.json").exists():
+        subprocess.run(
+            [
+                sys.executable,
+                str(REPO_ROOT / "scripts" / "plot_rfdetr_metrics.py"),
+                "--results-dir", str(rfdetr_out),
+            ],
+            cwd=str(REPO_ROOT),
+            capture_output=True,
+        )
 
     print(f"\nDone. Results under: {out_base}")
     print(f"  YOLO26:   {results_base / 'yolo26'} (metrics.json, plots/, annotated/)")

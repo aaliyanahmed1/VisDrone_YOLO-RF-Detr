@@ -39,6 +39,8 @@ The project employs two detector families: a **CNN-based** single-stage detector
 - **Training**: Pretrained weights; fine-tuned on VisDrone (COCO format); configurable epochs, batch size, and learning rate
 - **Output**: Bounding boxes and class scores (COCO-style); mapped to the same 10 VisDrone classes for evaluation and inference
 
+*We could have pushed RF-DETR for higher accuracy with more training and tuning, but due to time constraints we couldn’t go further—so treat the reported RF-DETR results as a solid baseline with room to improve.*
+
 **Transfer Learning**: Both models use pretrained weights and are fine-tuned on VisDrone. This approach is justified by limited data and compute; training from scratch would be slower and less effective.
 
 ---
@@ -97,8 +99,8 @@ Weights are written to the paths or default run directories specified. Hyperpara
 - **Splits**: Train, validation, test (VisDrone standard; test used only for final metrics)
 - **Metrics**: mAP50, mAP50-95, precision, recall; per-class AP where available. RF-DETR evaluation uses COCO-style AP
 - **Running Tests**:
-  - YOLO26: `python scripts/test_yolo26.py --data <path/to/data.yaml> --output-dir <output_dir> --save-predictions` — writes metrics, plots, and annotated test images to the output directory
-  - RF-DETR: `python scripts/test_rfdetr.py --dataset-dir <coco_root> --output-dir <output_dir> --save-annotated` — writes metrics and annotated test images
+  - YOLO26: `python scripts/test_yolo26.py --data <path/to/data.yaml> --output-dir <output_dir> --save-predictions` — writes metrics, plots, and optional annotated images
+  - RF-DETR: `python scripts/test_rfdetr.py --dataset-dir <coco_root> --output-dir <output_dir> --save-annotated` — writes metrics, curve-style plots, and optional annotated images (plots generated automatically)
 - **Unified Test Run**: `python scripts/run_test_suite.py --data <path/to/data.yaml> --data-coco <coco_root> --output-dir <base_output_dir>` runs both models and writes results in a standard layout
 - **VisDrone2019-DET-test-dev**: Place the **VisDrone2019-DET-test-dev** folder (with `images/` and `annotations/` inside) in the repo root or in a directory passed as `--testdev-dir`. Run `python scripts/run_test_on_testdev.py --testdev-dir <dir> --output-dir test_results_testdev` to convert test-dev to YOLO and COCO, run both models, and write to `test_results_testdev/results/yolo26/` and `test_results_testdev/results/rfdetr/`
 - **Error Analysis**: `python scripts/error_analysis.py --model yolo26` or `--model rfdetr` (with appropriate `--weights` and paths) to inspect validation metrics and failure samples
@@ -148,28 +150,37 @@ Per-class mAP50 (VisDrone 10 classes): car (0.47), bus (0.38), van (0.25), truck
 
 ### Test Set Results (RF-DETR)
 
-COCO-style AP metrics are written to `test_results_testdev/results/rfdetr/metrics.json` (AP, AP50, AP75) when the RF-DETR test is run with a valid checkpoint.
+| Metric | Value |
+|--------|--------|
+| mAP50-95 | 0.137 |
+| mAP50 | 0.216 |
+| mAP75 | 0.148 |
+| mAP (small) | 0.051 |
+| mAP (medium) | 0.221 |
+| mAP (large) | 0.444 |
+
+COCO-style evaluation; metrics and curve-style plots are written to `test_results_testdev/results/rfdetr/` (metrics.json, plots/, annotated/) when the RF-DETR test is run. The pipeline generates these plots automatically.
 
 ### Training Results and Visualizations
 
 The following visualizations are stored in the `images/` folder at the repository root.
 
-#### Confusion Matrix
+#### YOLO26 — Confusion Matrix
 
 ![YOLO26 confusion matrix](images/confusion_matrix_normalized.png)
 *Normalized confusion matrix showing classification performance across all 10 VisDrone classes*
 
-#### Precision-Recall Curve
+#### YOLO26 — Precision-Recall Curve
 
 ![YOLO26 PR curve](images/BoxPR_curve.png)
 *Precision-Recall curve demonstrating detection quality at various confidence thresholds*
 
-#### Precision Curve
+#### YOLO26 — Precision Curve
 
 ![YOLO26 P curve](images/BoxP_curve.png)
 *Precision curve showing model precision across confidence thresholds*
 
-#### Sample Predictions
+#### YOLO26 — Sample Predictions
 
 ![val batch0 pred](images/val_batch0_pred.jpg)
 *Sample validation batch predictions showing detected objects with bounding boxes and class labels*
@@ -177,16 +188,54 @@ The following visualizations are stored in the `images/` folder at the repositor
 ![val batch1 pred](images/val_batch1_pred.jpg)
 *Additional validation batch predictions demonstrating model performance on drone-captured scenes*
 
+#### RF-DETR — Metrics Summary (Curve)
+
+![RF-DETR metrics summary](images/rfdetr_metrics_summary.png)
+*Main metrics (mAP50-95, mAP50, mAP75) as a curve across thresholds on VisDrone test-dev*
+
+#### RF-DETR — Metrics by Object Scale
+
+![RF-DETR metrics by scale](images/rfdetr_metrics_by_scale.png)
+*mAP by object scale (small, medium, large) showing performance across different object sizes*
+
+#### RF-DETR — Metrics Overview (Dual Panel)
+
+![RF-DETR metrics all](images/rfdetr_metrics_all.png)
+*Combined view: main metrics and scale breakdown in one figure*
+
+#### RF-DETR — Score Distribution
+
+![RF-DETR scores histogram](images/rfdetr_scores_histogram.png)
+*Confidence score distribution of detections on the test set*
+
+#### RF-DETR — Detections per Class
+
+![RF-DETR detections per class](images/rfdetr_detections_per_class.png)
+*Number of detections per VisDrone class (pedestrian, people, bicycle, car, van, truck, tricycle, awning-tricycle, bus, motor)*
+
+#### RF-DETR — Sample Predictions (Model Output)
+
+![RF-DETR annotated 1](images/rfdetr_annotated_0000127.jpg)
+*RF-DETR predictions on a test-dev image: bounding boxes and class labels*
+
+![RF-DETR annotated 2](images/rfdetr_annotated_9999938_0179.jpg)
+*RF-DETR predictions on a drone-captured scene*
+
+![RF-DETR annotated 3](images/rfdetr_annotated_9999938_0459.jpg)
+*Additional RF-DETR annotated output on VisDrone test-dev*
+
 Annotated test images (model predictions drawn on test-dev images) are saved in:
 - `test_results_testdev/results/yolo26/annotated/`
 - `test_results_testdev/results/rfdetr/annotated/`
 
 ### Analysis Outputs Explained
 
-The **`images/`** folder at the repository root contains the visualizations shown in this README (confusion matrix, PR curve, precision curve, sample predictions). Full pipeline outputs are under `test_results_testdev/results/` when the test pipeline is run:
+The **`images/`** folder at the repository root contains the visualizations shown in this README: YOLO26 (confusion matrix, PR curve, precision curve, sample predictions) and RF-DETR (metrics summary, metrics by scale, metrics overview, score distribution, detections per class, sample annotated outputs). Full pipeline outputs are under `test_results_testdev/results/` when the test pipeline is run:
 
 - **`yolo26/metrics.json`**: mAP50, mAP50-95, precision, recall, and per-class AP
-- **`yolo26/plots/`**: Confusion matrix, PR curves, validation batch predictions (copies of key plots are in `images/`)
+- **`yolo26/plots/`**: Confusion matrix, PR curves, validation batch predictions (key plots in `images/`)
+- **`rfdetr/metrics.json`**: mAP50-95, mAP50, mAP75, mAP by scale (small/medium/large)
+- **`rfdetr/plots/`**: Curve-style metrics and score/class plots (key plots in `images/`)
 - **`yolo26/annotated/`** and **`rfdetr/annotated/`**: Test images with predicted bounding boxes drawn
 
 These outputs demonstrate the model evaluation process, metric reporting, and visual inspection capabilities for both YOLO26 and RF-DETR on the VisDrone test-dev set.
@@ -221,44 +270,53 @@ Model loading and paths are configurable; default weights are resolved from the 
 
 ## File Structure
 
+Production layout: config and code at top level; data and outputs in dedicated dirs; results follow a single standard layout.
+
 ```
 VisDrone_YOLO-RF-Detr/
-├── scripts/                          # Data, training, testing, inference
-│   ├── convert_visdrone_to_yolo.py   # VisDrone → YOLO format
-│   ├── convert_yolo_to_coco.py       # YOLO → COCO for RF-DETR
+├── api/                               # Inference API and UI
+│   ├── main.py                        # FastAPI app
+│   ├── engine.py                      # YOLO26 / RF-DETR inference
+│   └── static/index.html             # Web UI (upload, run, download)
+├── scripts/                           # Pipeline: data, train, test, export
+│   ├── convert_visdrone_to_yolo.py   # VisDrone → YOLO
+│   ├── convert_yolo_to_coco.py       # YOLO → COCO (for RF-DETR)
 │   ├── check_dataset.py              # Dataset validation
 │   ├── analyze_data.py               # Class distribution, counts
 │   ├── train_yolo26.py               # YOLO26 training
 │   ├── train_rfdetr.py               # RF-DETR training
-│   ├── test_yolo26.py                # YOLO26 evaluation
-│   ├── test_rfdetr.py                # RF-DETR evaluation
-│   ├── run_test_suite.py             # Run both models, standard output
-│   ├── run_test_on_testdev.py        # Full test-dev pipeline (convert + test)
+│   ├── test_yolo26.py                 # YOLO26 eval (metrics + plots + optional annotated)
+│   ├── test_rfdetr.py                # RF-DETR eval (metrics + results + plots + optional annotated)
+│   ├── run_test_suite.py             # Run both models → standard output layout
+│   ├── run_test_on_testdev.py        # Full test-dev: convert + run both → standard layout
 │   ├── inference.py                  # CLI inference
 │   └── error_analysis.py             # Validation analysis
-├── api/                               # Inference API and UI
-│   ├── main.py                       # FastAPI app
-│   ├── engine.py                     # YOLO26 / RF-DETR inference
-│   └── static/index.html             # Web UI (upload, run, download)
-├── models/                            # Weights and artifacts
-│   ├── Yolo26/weights/               # best.pt
+├── models/                            # Weights (gitignored; add best.pt / .pth locally)
+│   ├── Yolo26/weights/                # best.pt
 │   └── rfdetr/weights/               # checkpoint_best_regular.pth, etc.
-├── images/                            # README visuals (confusion matrix, curves, sample preds)
-├── test_results_testdev/              # Test-dev run output (after running pipeline)
-│   ├── yolo_data/                    # YOLO format (test/images, test/labels, data.yaml)
-│   ├── coco_data/                    # COCO format (test/)
-│   └── results/
-│       ├── yolo26/                   # YOLO26 test results
-│       │   ├── metrics.json          # mAP50, mAP50-95, precision, recall
-│       │   ├── plots/                # Confusion matrix, PR curves, val batch preds
-│       │   └── annotated/            # Test images with predicted boxes
-│       └── rfdetr/                   # RF-DETR test results
-│           ├── metrics.json          # COCO AP, AP50, AP75
-│           ├── plots/                # Metrics summary plot
-│           └── annotated/            # Test images with predicted boxes
+├── data/                              # Dataset roots (gitignored; place VisDrone here)
+├── images/                            # README assets (curves, sample preds)
 ├── requirements.txt
+├── Dockerfile                         # API + inference
 └── README.md
 ```
+
+**Test output layout** (same for `test_results/`, `test_results_testdev/results/`, or any `--output-dir`):
+
+```
+<output-dir>/
+├── yolo26/
+│   ├── metrics.json                  # mAP50, mAP50-95, precision, recall
+│   ├── plots/                        # F1/PR curves, confusion matrix
+│   └── annotated/                    # Test images with boxes (if --save-predictions)
+└── rfdetr/
+    ├── metrics.json                  # mAP50-95, mAP50, mAP75, mAP by scale
+    ├── results.json                  # COCO-format detections
+    ├── plots/                        # Curve-style metrics and score/class plots
+    └── annotated/                    # Test images with boxes (if --save-annotated)
+```
+
+Running the test pipeline (e.g. `test_rfdetr.py`, `run_test_suite.py`, or `run_test_on_testdev.py`) produces metrics and plots in one go; no separate plot step.
 
 ---
 

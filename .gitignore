@@ -25,9 +25,9 @@ data/visdrone/test/
 *.zip
 runs/
 weights/
-# Raw dataset (large; download separately)
+# Excluded from repo (do not push): raw dataset + pipeline outputs
 VisDrone2019-DET-test-dev/
-# Test pipeline output (large; uncomment next line to push result plots for README)
+test_results/
 test_results_testdev/
 
 # Kaggle / secrets
