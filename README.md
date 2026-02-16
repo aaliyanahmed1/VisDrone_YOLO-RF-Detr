@@ -164,51 +164,10 @@ Weights are written to the paths or default run directories specified. Hyperpara
 
 ### Where Models Struggle
 
-**1. Small and Distant Objects**
-Drone imagery is captured from high altitudes, so most objects appear tiny — often under 32×32 pixels. This is the single biggest challenge. RF-DETR's mAP on small objects (0.051) is significantly lower than on large objects (0.444), a ~9× gap. YOLO26 struggles similarly, with classes like `bicycle` and `people` (which tend to be small) scoring the lowest AP.
-
-**2. Heavy Occlusion**
-Crowded urban scenes contain overlapping vehicles and pedestrians. Partially occluded objects get missed entirely or produce low-confidence detections that fall below the threshold. This is especially common in dense traffic intersections and pedestrian crossings.
-
-**3. Inter-Class Confusion**
-Several VisDrone classes are visually similar, leading to systematic misclassification:
-
-| Confused Pair | Why It Happens |
-|---------------|----------------|
-| **car ↔ van** | Similar shape from above; vans are just slightly larger cars from a drone's perspective |
-| **pedestrian ↔ people** | VisDrone defines "pedestrian" as walking/standing and "people" as sitting/other postures — nearly impossible to distinguish at low resolution |
-| **tricycle ↔ awning-tricycle** | Identical base vehicle; the only difference is a canopy — hard to spot from drone altitude |
-| **bicycle ↔ motor** | At small scales, both look like two-wheeled objects with a rider |
-
-**4. Scale Variation Within the Same Image**
-A single drone image can contain objects ranging from 10px (distant pedestrian) to 400px (nearby bus). Models optimized for one scale tend to underperform on the other. The per-scale AP breakdown from RF-DETR shows this clearly:
-- Small objects: mAP **0.051**
-- Medium objects: mAP **0.221**
-- Large objects: mAP **0.444**
-
-**5. Class Imbalance Effects**
-With `car` making up ~40% of all annotations, both models are biased toward detecting cars. Rare classes like `awning-tricycle` (1.8%) and `bus` (1.7%) get fewer training examples, leading to lower recall. The per-class AP for YOLO26 reflects this — `car` scores 0.47 mAP50 while `bicycle` scores just 0.05.
-
-**6. Environmental Variation**
-Performance drops noticeably on:
-- **Night / low-light scenes** — reduced contrast makes detection harder
-- **Hazy / foggy conditions** — object edges become blurry
-- **High-density scenes** — NMS can merge nearby detections or suppress valid ones
-
-### What Could Improve Results
-
-| Approach | Expected Impact | Effort |
-|----------|----------------|--------|
-| Higher input resolution (1280px+) | Better small-object recall | Low — just change `imgsz` |
-| Test-time augmentation (TTA) | +1–3% mAP from multi-scale inference | Low |
-| Tiled inference (SAHI-style) | Major boost for small objects | Medium |
-| Longer RF-DETR training (50+ epochs) | Higher overall AP — current results are from limited training | Medium |
-| Class-weighted sampling / oversampling rare classes | Better recall on `awning-tricycle`, `bus`, `bicycle` | Medium |
-| Model ensembling (YOLO26 + RF-DETR) | Combines CNN speed with transformer accuracy | Medium |
-| Higher-capacity model (RF-DETR Large) | More parameters = better feature extraction | High (GPU memory) |
-| Pseudo-labeling on unlabeled drone data | More training data without manual annotation | High |
-
----
+- **Small / distant objects** — drone imagery has lots of tiny targets that are hard to detect. RF-DETR's small-object mAP (0.051) is ~9× lower than large-object mAP (0.444)
+- **Heavy occlusion** — crowded scenes cause missed or partial detections, especially at dense intersections
+- **Similar class confusion** — car vs. van, pedestrian vs. people, tricycle vs. awning-tricycle — visually near-identical from drone altitude
+- **Scale variation** — a single image can have objects from 10px to 400px, making it hard to optimize for all sizes at once
 
 ## Model Performance & Test Results (VisDrone2019-DET-test-dev)
 
