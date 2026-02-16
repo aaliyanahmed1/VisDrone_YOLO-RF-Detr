@@ -156,16 +156,24 @@ Weights are written to the paths or default run directories specified. Hyperpara
 
 ## Evaluation & Error Analysis
 
-- **Splits**: Train, validation, test (VisDrone standard; test used only for final metrics)
-- **Metrics**: mAP50, mAP50-95, precision, recall; per-class AP where available. RF-DETR evaluation uses COCO-style AP
-- **Running Tests**:
-  - YOLO26: `python scripts/test_yolo26.py --data <path/to/data.yaml> --output-dir <output_dir> --save-predictions` — writes metrics, plots, and optional annotated images
-  - RF-DETR: `python scripts/test_rfdetr.py --dataset-dir <coco_root> --output-dir <output_dir> --save-annotated` — writes metrics, curve-style plots, and optional annotated images (plots generated automatically)
-- **Unified Test Run**: `python scripts/run_test_suite.py --data <path/to/data.yaml> --data-coco <coco_root> --output-dir <base_output_dir>` runs both models and writes results in a standard layout
-- **VisDrone2019-DET-test-dev**: Place the **VisDrone2019-DET-test-dev** folder (with `images/` and `annotations/` inside) in the repo root or in a directory passed as `--testdev-dir`. Run `python scripts/run_test_on_testdev.py --testdev-dir <dir> --output-dir test_results_testdev` to convert test-dev to YOLO and COCO, run both models, and write to `test_results_testdev/results/yolo26/` and `test_results_testdev/results/rfdetr/`
-- **Error Analysis**: `python scripts/error_analysis.py --model yolo26` or `--model rfdetr` (with appropriate `--weights` and paths) to inspect validation metrics and failure samples
-- **Typical Failure Modes**: Small or distant objects, heavy occlusion, confusion between similar classes (e.g. car/van, pedestrian/people)
-- **Improvement Directions**: More data or small-object augmentation; higher input resolution; class-weighted loss or oversampling; post-processing (e.g. NMS tuning)
+- **Data Splits**: We follow the standard VisDrone split — training, validation, and test. The test set is only touched for final evaluation, never during training
+- **Metrics**: We report mAP50, mAP50-95, precision, and recall for YOLO26. For RF-DETR, we use COCO-style AP metrics (mAP50-95, mAP50, mAP75) along with size-based breakdown (small, medium, large objects)
+- **How We Test**: Each model can be evaluated independently or together through a unified test pipeline. The pipeline automatically generates metrics JSON, precision-recall curves, confusion matrices, and optionally saves annotated test images with predicted bounding boxes drawn on them
+- **Test-Dev Evaluation**: For the official VisDrone2019-DET-test-dev benchmark (1,610 images), we have a single script that handles everything — converts the dataset to the right format, runs both models, and writes all results into a clean folder structure
+- **Error Analysis**: We inspect per-class AP, confusion matrices, and failure samples on the validation set to understand where models struggle and where they do well
+
+### Where Models Struggle
+
+- **Small / distant objects** — drone imagery has lots of tiny targets that are hard to detect
+- **Heavy occlusion** — crowded scenes cause missed or partial detections
+- **Similar class confusion** — car vs. van, pedestrian vs. people — these pairs are visually close and often misclassified
+
+### What Could Improve Results
+
+- Larger training set or targeted small-object augmentation (higher resolution crops, tiling)
+- Higher input resolution (e.g. 1280px instead of 640px) for better small-object recall
+- Focal loss tuning or class-specific loss weighting for the rare categories
+- NMS threshold tuning and ensemble of both models for post-processing gains
 
 ---
 
