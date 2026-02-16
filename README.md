@@ -156,24 +156,57 @@ Weights are written to the paths or default run directories specified. Hyperpara
 
 ## Evaluation & Error Analysis
 
-- **Data Splits**: We follow the standard VisDrone split — training, validation, and test. The test set is only touched for final evaluation, never during training
-- **Metrics**: We report mAP50, mAP50-95, precision, and recall for YOLO26. For RF-DETR, we use COCO-style AP metrics (mAP50-95, mAP50, mAP75) along with size-based breakdown (small, medium, large objects)
-- **How We Test**: Each model can be evaluated independently or together through a unified test pipeline. The pipeline automatically generates metrics JSON, precision-recall curves, confusion matrices, and optionally saves annotated test images with predicted bounding boxes drawn on them
-- **Test-Dev Evaluation**: For the official VisDrone2019-DET-test-dev benchmark (1,610 images), we have a single script that handles everything — converts the dataset to the right format, runs both models, and writes all results into a clean folder structure
-- **Error Analysis**: We inspect per-class AP, confusion matrices, and failure samples on the validation set to understand where models struggle and where they do well
+- **Data Splits**: Standard VisDrone split — training, validation, and test. The test set is only touched for final evaluation, never during training
+- **Metrics**: mAP50, mAP50-95, precision, and recall are reported for YOLO26. RF-DETR uses COCO-style AP metrics (mAP50-95, mAP50, mAP75) along with size-based breakdown (small, medium, large objects)
+- **Testing**: Each model can be evaluated independently or together through a unified test pipeline. The pipeline automatically generates metrics JSON, precision-recall curves, confusion matrices, and optionally saves annotated test images with predicted bounding boxes drawn on them
+- **Test-Dev Evaluation**: For the official VisDrone2019-DET-test-dev benchmark (1,610 images), a single script handles everything — converts the dataset to the right format, runs both models, and writes all results into a clean folder structure
+- **Error Analysis**: Per-class AP, confusion matrices, and failure samples on the validation set are inspected to understand where models struggle and where they perform well
 
 ### Where Models Struggle
 
-- **Small / distant objects** — drone imagery has lots of tiny targets that are hard to detect
-- **Heavy occlusion** — crowded scenes cause missed or partial detections
-- **Similar class confusion** — car vs. van, pedestrian vs. people — these pairs are visually close and often misclassified
+**1. Small and Distant Objects**
+Drone imagery is captured from high altitudes, so most objects appear tiny — often under 32×32 pixels. This is the single biggest challenge. RF-DETR's mAP on small objects (0.051) is significantly lower than on large objects (0.444), a ~9× gap. YOLO26 struggles similarly, with classes like `bicycle` and `people` (which tend to be small) scoring the lowest AP.
+
+**2. Heavy Occlusion**
+Crowded urban scenes contain overlapping vehicles and pedestrians. Partially occluded objects get missed entirely or produce low-confidence detections that fall below the threshold. This is especially common in dense traffic intersections and pedestrian crossings.
+
+**3. Inter-Class Confusion**
+Several VisDrone classes are visually similar, leading to systematic misclassification:
+
+| Confused Pair | Why It Happens |
+|---------------|----------------|
+| **car ↔ van** | Similar shape from above; vans are just slightly larger cars from a drone's perspective |
+| **pedestrian ↔ people** | VisDrone defines "pedestrian" as walking/standing and "people" as sitting/other postures — nearly impossible to distinguish at low resolution |
+| **tricycle ↔ awning-tricycle** | Identical base vehicle; the only difference is a canopy — hard to spot from drone altitude |
+| **bicycle ↔ motor** | At small scales, both look like two-wheeled objects with a rider |
+
+**4. Scale Variation Within the Same Image**
+A single drone image can contain objects ranging from 10px (distant pedestrian) to 400px (nearby bus). Models optimized for one scale tend to underperform on the other. The per-scale AP breakdown from RF-DETR shows this clearly:
+- Small objects: mAP **0.051**
+- Medium objects: mAP **0.221**
+- Large objects: mAP **0.444**
+
+**5. Class Imbalance Effects**
+With `car` making up ~40% of all annotations, both models are biased toward detecting cars. Rare classes like `awning-tricycle` (1.8%) and `bus` (1.7%) get fewer training examples, leading to lower recall. The per-class AP for YOLO26 reflects this — `car` scores 0.47 mAP50 while `bicycle` scores just 0.05.
+
+**6. Environmental Variation**
+Performance drops noticeably on:
+- **Night / low-light scenes** — reduced contrast makes detection harder
+- **Hazy / foggy conditions** — object edges become blurry
+- **High-density scenes** — NMS can merge nearby detections or suppress valid ones
 
 ### What Could Improve Results
 
-- Larger training set or targeted small-object augmentation (higher resolution crops, tiling)
-- Higher input resolution (e.g. 1280px instead of 640px) for better small-object recall
-- Focal loss tuning or class-specific loss weighting for the rare categories
-- NMS threshold tuning and ensemble of both models for post-processing gains
+| Approach | Expected Impact | Effort |
+|----------|----------------|--------|
+| Higher input resolution (1280px+) | Better small-object recall | Low — just change `imgsz` |
+| Test-time augmentation (TTA) | +1–3% mAP from multi-scale inference | Low |
+| Tiled inference (SAHI-style) | Major boost for small objects | Medium |
+| Longer RF-DETR training (50+ epochs) | Higher overall AP — current results are from limited training | Medium |
+| Class-weighted sampling / oversampling rare classes | Better recall on `awning-tricycle`, `bus`, `bicycle` | Medium |
+| Model ensembling (YOLO26 + RF-DETR) | Combines CNN speed with transformer accuracy | Medium |
+| Higher-capacity model (RF-DETR Large) | More parameters = better feature extraction | High (GPU memory) |
+| Pseudo-labeling on unlabeled drone data | More training data without manual annotation | High |
 
 ---
 
