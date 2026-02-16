@@ -302,6 +302,8 @@ These outputs demonstrate the model evaluation process, metric reporting, and vi
 
 ---
 
+---
+
 ## Inference & Deployment
 
 **CLI:**
@@ -325,6 +327,20 @@ uvicorn api.main:app --host 0.0.0.0 --port 8000
 - **API**: `POST /infer` with form fields `model` (yolo26 | rfdetr) and `file` (image or video). Response includes `result_url` (annotated file) and `detections` (for images)
 
 Model loading and paths are configurable; default weights are resolved from the `models/` directory (see `api/engine.py`).
+
+### Docker Deployment
+
+You can run the pre-built image directly from Docker Hub without installing dependencies manually:
+
+```bash
+# Pull and run the image (GPU recommended)
+docker run -p 8000:8000 --gpus all aaliyan16/visdrone-api:latest
+
+# CPU-only mode
+docker run -p 8000:8000 aaliyan16/visdrone-api:latest
+```
+
+The API will be available at **http://localhost:8000**.
 
 ---
 
